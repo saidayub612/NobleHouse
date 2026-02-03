@@ -972,21 +972,53 @@ select option:checked {
   
   <script>
   // ===== Storage wrapper (works even if localStorage is blocked) =====
-  const LS = (()=>{
-    try{
-      const t="__nh_test__";
-      window.localStorage.setItem(t,"1");
-      window.localStorage.removeItem(t);
-      return window.localStorage;
-    }catch(e){
-      const mem = {};
-      return {
-        getItem:(k)=> (Object.prototype.hasOwnProperty.call(mem,k) ? mem[k] : null),
-        setItem:(k,v)=>{ mem[k]=String(v); },
-        removeItem:(k)=>{ delete mem[k]; }
-      };
+ // ===== Storage wrapper (works even if localStorage is blocked) + Cloud Sync =====
+const LS = (()=>{
+  let storage;
+
+  try{
+    const t="__nh_test__";
+    window.localStorage.setItem(t,"1");
+    window.localStorage.removeItem(t);
+    storage = window.localStorage;
+  }catch(e){
+    const mem = {};
+    storage = {
+      getItem:(k)=> (Object.prototype.hasOwnProperty.call(mem,k) ? mem[k] : null),
+      setItem:(k,v)=>{ mem[k]=String(v); },
+      removeItem:(k)=>{ delete mem[k]; }
+    };
+  }
+
+  // Intercept setItem to sync the main app state to cloud
+  const originalSetItem = storage.setItem.bind(storage);
+const SYNC_KEYS = new Set(["employees","products","customers","payments","spends","product_types"]);
+  storage.setItem = function(key, value){
+    originalSetItem(key, value);
+
+    // Change this key ONLY if your app uses a different one
+if (SYNC_KEYS.has(key)) {
+  try {
+    const adminKey = sessionStorage.getItem("NH_ADMIN_KEY");
+    if (!adminKey) return; // guest = no cloud writes
+
+    const snapshot = {};
+    SYNC_KEYS.forEach(k => {
+      snapshot[k] = JSON.parse(LS.getItem(k) || "[]");
+    });
+    snapshot.updatedAt = new Date().toISOString();
+
+    if (window.NH_CLOUD?.nhSaveCloud) {
+      NH_CLOUD.nhSaveCloud(snapshot, adminKey)
+        .then(() => console.log("Cloud synced ✅"))
+        .catch((e) => console.log("Cloud sync failed", e));
     }
-  })();
+  } catch (e) {}
+};
+
+  return storage;
+})();
+
 
     // ===== Auth rules =====
     const ADMIN_USER = "Admin";
@@ -1359,6 +1391,7 @@ select option:checked {
 
         // Admin login
         if(username.toLowerCase() === ADMIN_USER.toLowerCase() && password === ADMIN_PASS){
+	sessionStorage.setItem("NH_ADMIN_KEY", password);
           setSession(username, "ADMIN");
           showPage("app");
           return;
