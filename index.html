@@ -2314,6 +2314,29 @@ document.addEventListener("click",(e)=>{
   if(!btn) return;
   printCustomer(btn.getAttribute("data-print-customer"));
 });
+<script>
+  // ===== NobleHouse Cloud Save (GitHub + Cloudflare Worker) =====
+  const NH_WORKER_URL = "https://blue-credit-83d8.ayubahmad1212.workers.dev";
+
+  async function nhLoadCloud() {
+    const res = await fetch("./data.json?ts=" + Date.now());
+    if (!res.ok) throw new Error("Failed to load data.json");
+    return await res.json();
+  }
+
+  async function nhSaveCloud(data, adminKey) {
+    const res = await fetch(NH_WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adminKey, data })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return await res.json();
+  }
+
+  // Expose helpers globally (so you can call them from your existing code)
+  window.NH_CLOUD = { nhLoadCloud, nhSaveCloud };
+</script>
 
 </script>
 
