@@ -1,6 +1,11 @@
 {
-  "employees": [],
+  "employees": [
+    {
+      "name": "Cloud Test",
+      "salary": 500
+    }
+  ],
   "receipts": [],
   "decorTypes": [],
-  "updatedAt": ""
+  "updatedAt": "working"
 }
